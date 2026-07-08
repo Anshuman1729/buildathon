@@ -11,7 +11,7 @@ export async function GET() {
     await getSchemaReady();
     const db = getDb();
 
-    // Join meeting title onto each decision for display.
+    // Join source label/type onto each decision for display.
     const rows = await db
       .select({
         id: decisions.id,
@@ -21,7 +21,9 @@ export async function GET() {
         status: decisions.status,
         createdAt: decisions.createdAt,
         sourceMeeting: decisions.sourceMeeting,
-        meetingTitle: meetings.title,
+        sourceSnippet: decisions.sourceSnippet,
+        sourceType: meetings.sourceType,
+        sourceLabel: meetings.title,
       })
       .from(decisions)
       .leftJoin(meetings, eq(decisions.sourceMeeting, meetings.id))
@@ -33,7 +35,8 @@ export async function GET() {
         text: openQuestions.text,
         owner: openQuestions.owner,
         createdAt: openQuestions.createdAt,
-        meetingTitle: meetings.title,
+        sourceType: meetings.sourceType,
+        sourceLabel: meetings.title,
       })
       .from(openQuestions)
       .leftJoin(meetings, eq(openQuestions.sourceMeeting, meetings.id))

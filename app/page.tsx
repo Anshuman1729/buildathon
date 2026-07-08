@@ -1,17 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AddMeetingForm } from "@/components/AddMeetingForm";
+import { AddSourceForm } from "@/components/AddSourceForm";
 import { ChatBox } from "@/components/ChatBox";
 import { ConflictsPanel } from "@/components/ConflictsPanel";
 import { DecisionTimeline } from "@/components/DecisionTimeline";
+import { GanttView } from "@/components/GanttView";
 import type { DecisionsResponse, DecisionRow, QuestionRow } from "@/lib/types";
+
+type ViewTab = "timeline" | "gantt";
 
 export default function Home() {
   const [decisions, setDecisions] = useState<DecisionRow[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<ViewTab>("timeline");
 
   const loadDecisions = useCallback(async () => {
     setLoading(true);
@@ -42,23 +46,50 @@ export default function Home() {
         <h1 className="text-2xl font-bold">🧠 Second Brain Standup</h1>
         <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
           Queryable memory of decisions, owners, and open threads across your
-          meetings.
+          meetings, Slack channels, and email threads.
         </p>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Left column: add meeting + timeline */}
+        {/* Left column: add source + timeline/gantt */}
         <div className="space-y-6">
-          <AddMeetingForm onAdded={handleAdded} />
+          <AddSourceForm onAdded={handleAdded} />
 
           <section>
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Decision timeline</h2>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setView("timeline")}
+                  className="rounded-lg px-3 py-1.5 text-sm font-semibold"
+                  style={
+                    view === "timeline"
+                      ? { background: "var(--accent)", color: "#0b0d12" }
+                      : { color: "var(--muted)" }
+                  }
+                >
+                  Timeline
+                </button>
+                <button
+                  onClick={() => setView("gantt")}
+                  className="rounded-lg px-3 py-1.5 text-sm font-semibold"
+                  style={
+                    view === "gantt"
+                      ? { background: "var(--accent)", color: "#0b0d12" }
+                      : { color: "var(--muted)" }
+                  }
+                >
+                  Gantt
+                </button>
+              </div>
               <span className="text-xs" style={{ color: "var(--muted)" }}>
                 {loading ? "Loading…" : `${decisions.length} total`}
               </span>
             </div>
-            <DecisionTimeline decisions={decisions} />
+            {view === "timeline" ? (
+              <DecisionTimeline decisions={decisions} />
+            ) : (
+              <GanttView decisions={decisions} />
+            )}
           </section>
 
           {questions.length > 0 && (
@@ -77,7 +108,7 @@ export default function Home() {
                       style={{ color: "var(--muted)" }}
                     >
                       {q.owner ?? "Unassigned"} ·{" "}
-                      {q.meetingTitle ?? "unknown meeting"}
+                      {q.sourceLabel ?? "unknown source"}
                     </p>
                   </div>
                 ))}

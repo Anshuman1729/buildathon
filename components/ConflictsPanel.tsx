@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ConflictsResponse } from "@/lib/types";
+import { SourceBadge } from "./SourceBadge";
 
 export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
   const [data, setData] = useState<ConflictsResponse | null>(null);
@@ -78,11 +79,13 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
                 <p className="mb-2 text-xs" style={{ color: "#f5b971" }}>
                   {c.reason}
                 </p>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                <p className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
                   <b>A:</b> {c.a?.text ?? "—"}
+                  {c.a && <SourceBadge sourceType={c.a.sourceType} />}
                 </p>
-                <p className="text-xs" style={{ color: "var(--muted)" }}>
+                <p className="mt-1 flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
                   <b>B:</b> {c.b?.text ?? "—"}
+                  {c.b && <SourceBadge sourceType={c.b.sourceType} />}
                 </p>
               </div>
             ))}
@@ -99,7 +102,10 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
                 className="rounded-lg border p-3 text-xs"
                 style={{ background: "var(--surface-2)" }}
               >
-                <p>{s.text}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p>{s.text}</p>
+                  <SourceBadge sourceType={s.sourceType} />
+                </div>
                 <p className="mt-1" style={{ color: "var(--muted)" }}>
                   {s.owner ?? "Unassigned"} · {s.deadline ?? "no deadline"}
                 </p>

@@ -5,6 +5,8 @@ export const meetings = pgTable("meetings", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   transcript: text("transcript").notNull(),
+  // 'meeting' | 'slack' | 'email'
+  sourceType: text("source_type").notNull().default("meeting"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),
@@ -20,6 +22,9 @@ export const decisions = pgTable("decisions", {
     .references(() => meetings.id, { onDelete: "cascade" }),
   // 'open' | 'done' | 'stale'
   status: text("status").notNull().default("open"),
+  // Verbatim excerpt from the source text supporting this decision, when the
+  // model can identify one. Null if not captured.
+  sourceSnippet: text("source_snippet"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),

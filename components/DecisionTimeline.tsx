@@ -1,6 +1,8 @@
 "use client";
 
 import type { DecisionRow } from "@/lib/types";
+import { SourceBadge } from "./SourceBadge";
+import { statusColor } from "@/lib/ui";
 
 function fmtDay(ts: string | number): string {
   const d = new Date(typeof ts === "string" ? Number(ts) || ts : ts);
@@ -17,12 +19,6 @@ function fmtTime(ts: string | number): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-const statusColor: Record<string, string> = {
-  open: "#6ea8fe",
-  done: "#7ee2b8",
-  stale: "#f5b971",
-};
-
 export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
   if (decisions.length === 0) {
     return (
@@ -30,7 +26,7 @@ export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
         className="rounded-xl border p-6 text-sm"
         style={{ background: "var(--surface)", color: "var(--muted)" }}
       >
-        No decisions yet. Add a meeting to start building your team&apos;s memory.
+        No decisions yet. Add a source to start building your team&apos;s memory.
       </div>
     );
   }
@@ -63,15 +59,18 @@ export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm leading-relaxed">{d.text}</p>
-                  <span
-                    className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
-                    style={{
-                      color: statusColor[d.status] ?? "var(--muted)",
-                      border: `1px solid ${statusColor[d.status] ?? "var(--border)"}`,
-                    }}
-                  >
-                    {d.status}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <SourceBadge sourceType={d.sourceType} />
+                    <span
+                      className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
+                      style={{
+                        color: statusColor[d.status] ?? "var(--muted)",
+                        border: `1px solid ${statusColor[d.status] ?? "var(--border)"}`,
+                      }}
+                    >
+                      {d.status}
+                    </span>
+                  </div>
                 </div>
                 <div
                   className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"
@@ -79,7 +78,7 @@ export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
                 >
                   <span>👤 {d.owner ?? "Unassigned"}</span>
                   <span>📅 {d.deadline ?? "No deadline"}</span>
-                  <span>🗂 {d.meetingTitle ?? `Meeting #${d.sourceMeeting}`}</span>
+                  <span>🗂 {d.sourceLabel ?? `Source #${d.sourceMeeting}`}</span>
                   <span>🕑 {fmtTime(d.createdAt)}</span>
                 </div>
               </div>

@@ -63,6 +63,7 @@ async function ensureSchema(): Promise<void> {
         id SERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         transcript TEXT NOT NULL,
+        source_type TEXT NOT NULL DEFAULT 'meeting',
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
 
@@ -73,6 +74,7 @@ async function ensureSchema(): Promise<void> {
         deadline TEXT,
         source_meeting INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
         status TEXT NOT NULL DEFAULT 'open',
+        source_snippet TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
 
@@ -83,6 +85,10 @@ async function ensureSchema(): Promise<void> {
         source_meeting INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       );
+
+      -- Additive migrations for databases created before these columns existed.
+      ALTER TABLE meetings ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'meeting';
+      ALTER TABLE decisions ADD COLUMN IF NOT EXISTS source_snippet TEXT;
     `);
   } finally {
     await client.query("SELECT pg_advisory_unlock($1)", [SCHEMA_LOCK_KEY]);

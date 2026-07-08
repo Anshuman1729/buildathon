@@ -1,9 +1,14 @@
 import { GROQ_MODEL, extractJson, getGroq } from "./groq";
 
+export type SourceType = "meeting" | "slack" | "email";
+
+export const SOURCE_TYPES: SourceType[] = ["meeting", "slack", "email"];
+
 export type ExtractedDecision = {
   text: string;
   owner: string | null;
   deadline: string | null;
+  sourceSnippet: string | null;
 };
 
 export type ExtractedQuestion = {
@@ -18,38 +23,80 @@ export type Extraction = {
 
 const EMPTY: Extraction = { decisions: [], open_questions: [] };
 
-const SYSTEM_PROMPT = `You extract structured standup/meeting memory from raw transcripts.
-Return ONLY a JSON object with this exact shape:
+const JSON_SHAPE = `Return ONLY a JSON object with this exact shape:
 {
   "decisions": [
-    { "text": "concise statement of the decision that was made", "owner": "person responsible or null", "deadline": "due date/timeframe as written, ISO date if possible, or null" }
+    {
+      "text": "concise statement of the decision that was made",
+      "owner": "person responsible or null",
+      "deadline": "due date/timeframe as written, ISO date if possible, or null",
+      "source_snippet": "a short verbatim quote from the input that supports this decision, or null if none is clearly identifiable"
+    }
   ],
   "open_questions": [
     { "text": "an unresolved question or open thread", "owner": "person expected to follow up or null" }
   ]
-}
-Rules:
+}`;
+
+const COMMON_RULES = `Rules:
 - A "decision" is a concrete choice the group committed to (not a suggestion or discussion point).
-- Only include decisions and questions actually present in the transcript. Do not invent any.
-- Use null (not empty string) when an owner or deadline is not stated.
-- Keep each "text" short and self-contained (readable without the transcript).
+- Only include decisions and questions actually present in the input. Do not invent any.
+- Use null (not empty string) when a field is not stated or not identifiable.
+- Keep each "text" short and self-contained (readable without the original input).
+- "source_snippet" must be a verbatim substring copied from the input, never paraphrased. Prefer the
+  shortest snippet that clearly supports the decision. Use null if you can't point to one.
 - Respond with JSON only. No prose, no markdown.`;
 
-/** Send a transcript to Groq and return normalized decisions + open questions. */
-export async function extractFromTranscript(
-  transcript: string
+const SYSTEM_PROMPTS: Record<SourceType, string> = {
+  meeting: `You extract structured standup/meeting memory from raw meeting transcripts.
+${JSON_SHAPE}
+${COMMON_RULES}`,
+
+  slack: `You extract structured decisions and open threads from a pasted Slack conversation export.
+Slack messages are short, informal, and often imply a decision without stating it formally (e.g.
+"ok let's just go with option B", "yeah I'll handle the migration by fri" — these count as decisions).
+Messages typically look like:
+Username  HH:MM AM
+message text
+Username  HH:MM AM
+message text
+${JSON_SHAPE}
+${COMMON_RULES}
+- Treat casual agreement/commitment language ("sounds good", "I'll do it", "let's ship it") as a
+  decision when it resolves something the channel was discussing — don't require formal phrasing.
+- The "owner" is usually the Slack username who committed to the action, not who wrote the message
+  reporting on it.`,
+
+  email: `You extract structured decisions and open threads from a pasted email thread (subject line,
+sender(s), and body text, possibly including multiple replies quoted below each other).
+${JSON_SHAPE}
+${COMMON_RULES}
+- Use the subject line and sender names to disambiguate who owns what when the body doesn't repeat a
+  name explicitly.
+- If the thread has multiple replies, later replies may confirm, change, or override earlier ones —
+  prefer the most recent stated decision on a given topic.
+- Ignore quoted signature blocks, disclaimers, and "On [date], [person] wrote:" quote headers when
+  looking for decision text — but they may still be used as source_snippet context if that's where
+  the decision was stated.`,
+};
+
+/** Send raw source text to Groq and return normalized decisions + open questions. */
+export async function extractFromSource(
+  sourceType: SourceType,
+  rawText: string
 ): Promise<Extraction> {
   const groq = getGroq();
+  const systemPrompt = SYSTEM_PROMPTS[sourceType];
 
   const completion = await groq.chat.completions.create({
     model: GROQ_MODEL,
     temperature: 0.2,
     response_format: { type: "json_object" },
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `Transcript:\n\n${transcript}`,
+        content: `Input:\n\n${rawText}`,
       },
     ],
   });
@@ -74,12 +121,14 @@ function normalizeDecisions(input: unknown): ExtractedDecision[] {
   if (!Array.isArray(input)) return [];
   return input
     .map((d) => {
-      const text = str((d as Record<string, unknown>)?.text);
+      const rec = d as Record<string, unknown>;
+      const text = str(rec?.text);
       if (!text) return null;
       return {
         text,
-        owner: str((d as Record<string, unknown>)?.owner),
-        deadline: str((d as Record<string, unknown>)?.deadline),
+        owner: str(rec?.owner),
+        deadline: str(rec?.deadline),
+        sourceSnippet: str(rec?.source_snippet),
       } satisfies ExtractedDecision;
     })
     .filter((d): d is ExtractedDecision => d !== null);

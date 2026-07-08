@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, lt } from "drizzle-orm";
 import { getDb, getSchemaReady } from "@/lib/db";
-import { decisions } from "@/lib/db/schema";
+import { decisions, meetings } from "@/lib/db/schema";
 import { findContradictions } from "@/lib/conflicts";
 
 export const runtime = "nodejs";
@@ -9,6 +9,23 @@ export const dynamic = "force-dynamic";
 
 const STALE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 const MAX_FOR_CONTRADICTIONS = 40; // bound the LLM input
+
+// Selected columns for decisions joined with their source's label/type,
+// shared by both the stale list and the contradiction-check input below.
+// Includes every field of the plain `Decision` row shape (so it can still be
+// passed to `findContradictions`, which is untouched) plus the join extras.
+const decisionWithSource = {
+  id: decisions.id,
+  text: decisions.text,
+  owner: decisions.owner,
+  deadline: decisions.deadline,
+  sourceMeeting: decisions.sourceMeeting,
+  status: decisions.status,
+  sourceSnippet: decisions.sourceSnippet,
+  createdAt: decisions.createdAt,
+  sourceType: meetings.sourceType,
+  sourceLabel: meetings.title,
+} as const;
 
 export async function GET() {
   let db;
@@ -30,15 +47,19 @@ export async function GET() {
     .where(and(eq(decisions.status, "open"), lt(decisions.createdAt, cutoff)));
 
   const stale = await db
-    .select()
+    .select(decisionWithSource)
     .from(decisions)
+    .leftJoin(meetings, eq(decisions.sourceMeeting, meetings.id))
     .where(eq(decisions.status, "stale"))
     .orderBy(desc(decisions.createdAt));
 
   // 2. Contradictions: ask the model over a bounded set of recent decisions.
+  // (findContradictions itself is untouched — it only reads the plain
+  // Decision fields; sourceType/sourceLabel are extras for the response.)
   const recent = await db
-    .select()
+    .select(decisionWithSource)
     .from(decisions)
+    .leftJoin(meetings, eq(decisions.sourceMeeting, meetings.id))
     .orderBy(desc(decisions.createdAt))
     .limit(MAX_FOR_CONTRADICTIONS);
 

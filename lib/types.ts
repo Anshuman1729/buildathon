@@ -1,5 +1,7 @@
 // Shared client-facing shapes (dates serialize to numbers/strings over JSON).
 
+export type SourceType = "meeting" | "slack" | "email";
+
 export type DecisionRow = {
   id: number;
   text: string;
@@ -8,7 +10,9 @@ export type DecisionRow = {
   status: string;
   createdAt: string | number;
   sourceMeeting: number;
-  meetingTitle: string | null;
+  sourceType: SourceType;
+  sourceLabel: string | null;
+  sourceSnippet: string | null;
 };
 
 export type QuestionRow = {
@@ -16,7 +20,8 @@ export type QuestionRow = {
   text: string;
   owner: string | null;
   createdAt: string | number;
-  meetingTitle: string | null;
+  sourceType: SourceType;
+  sourceLabel: string | null;
 };
 
 export type DecisionsResponse = {
@@ -24,20 +29,24 @@ export type DecisionsResponse = {
   openQuestions: QuestionRow[];
 };
 
+export type ConflictDecisionRow = {
+  id: number;
+  text: string;
+  owner: string | null;
+  deadline: string | null;
+  status: string;
+  createdAt: string | number;
+  sourceMeeting: number;
+  sourceType: SourceType;
+  sourceLabel: string | null;
+};
+
 export type ConflictsResponse = {
-  stale: {
-    id: number;
-    text: string;
-    owner: string | null;
-    deadline: string | null;
-    status: string;
-    createdAt: string | number;
-    sourceMeeting: number;
-  }[];
+  stale: ConflictDecisionRow[];
   contradictions: {
     reason: string;
-    a: { id: number; text: string } | null;
-    b: { id: number; text: string } | null;
+    a: ConflictDecisionRow | null;
+    b: ConflictDecisionRow | null;
   }[];
   contradictionError: string | null;
 };
