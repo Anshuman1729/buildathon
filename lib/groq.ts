@@ -16,7 +16,11 @@ export function getGroq(): Groq {
     );
   }
   if (!client) {
-    client = new Groq({ apiKey });
+    // Explicit timeout so a slow/hanging network call fails with a clear
+    // error instead of hanging until the platform's own request timeout
+    // (e.g. Vercel's function execution limit), which just looks like the
+    // UI being permanently stuck with no diagnostic information.
+    client = new Groq({ apiKey, timeout: 25_000, maxRetries: 1 });
   }
   return client;
 }

@@ -46,11 +46,18 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
     setError(null);
     setSummary(null);
     try {
+      // Client-side safety net: the server-side Groq call has its own
+      // timeout, but this ensures the button never sits on "Extracting…"
+      // forever if something upstream still misbehaves.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 35_000);
       const res = await fetch("/api/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sourceType: tab, title, text }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong.");
@@ -66,8 +73,12 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
       setTitle("");
       setText("");
       onAdded();
-    } catch {
-      setError("Network error. Is the dev server running?");
+    } catch (err) {
+      setError(
+        err instanceof DOMException && err.name === "AbortError"
+          ? "Request timed out. The extraction service may be slow or unreachable — try again."
+          : "Network error. Is the dev server running?"
+      );
     } finally {
       setLoading(false);
     }
