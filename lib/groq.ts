@@ -20,7 +20,7 @@ export function getGroq(): Groq {
     // error instead of hanging until the platform's own request timeout
     // (e.g. Vercel's function execution limit), which just looks like the
     // UI being permanently stuck with no diagnostic information.
-    client = new Groq({ apiKey, timeout: 25_000, maxRetries: 1 });
+    client = new Groq({ apiKey, timeout: 25_000, maxRetries: 0 });
   }
   return client;
 }

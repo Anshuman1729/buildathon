@@ -50,7 +50,7 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
       // timeout, but this ensures the button never sits on "Extracting…"
       // forever if something upstream still misbehaves.
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 35_000);
+      const timeout = setTimeout(() => controller.abort(), 45_000);
       const res = await fetch("/api/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
