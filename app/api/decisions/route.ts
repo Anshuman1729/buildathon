@@ -22,6 +22,7 @@ export async function GET() {
         createdAt: decisions.createdAt,
         sourceMeeting: decisions.sourceMeeting,
         sourceSnippet: decisions.sourceSnippet,
+        category: decisions.category,
         sourceType: meetings.sourceType,
         sourceLabel: meetings.title,
       })

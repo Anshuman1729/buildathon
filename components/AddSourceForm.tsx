@@ -23,7 +23,13 @@ const TABS: { type: SourceType; label: string; placeholder: string }[] = [
   },
 ];
 
-export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
+export function AddSourceForm({
+  onAdded,
+  onClose,
+}: {
+  onAdded: () => void;
+  onClose?: () => void;
+}) {
   const [tab, setTab] = useState<SourceType>("meeting");
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -73,6 +79,7 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
       setTitle("");
       setText("");
       onAdded();
+      onClose?.();
     } catch (err) {
       setError(
         err instanceof DOMException && err.name === "AbortError"
@@ -85,18 +92,7 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="rounded-xl border p-4"
-      style={{ background: "var(--surface)" }}
-    >
-      <h2
-        className="mb-3 text-sm font-semibold uppercase tracking-wide"
-        style={{ color: "var(--muted)" }}
-      >
-        Add source
-      </h2>
-
+    <form onSubmit={submit}>
       <div className="mb-3 flex gap-1">
         {TABS.map((t) => (
           <button
@@ -106,7 +102,7 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
             className="rounded-lg px-3 py-1.5 text-xs font-medium"
             style={
               tab === t.type
-                ? { background: "var(--accent)", color: "#0b0d12" }
+                ? { background: "var(--accent)", color: "var(--accent-contrast)" }
                 : { background: "var(--surface-2)", color: "var(--muted)" }
             }
           >
@@ -133,17 +129,17 @@ export function AddSourceForm({ onAdded }: { onAdded: () => void }) {
           type="submit"
           disabled={loading || !text.trim()}
           className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          style={{ background: "var(--accent)", color: "#0b0d12" }}
+          style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
         >
           {loading ? "Extracting…" : "Extract & save"}
         </button>
         {summary && (
-          <span className="text-sm" style={{ color: "#7ee2b8" }}>
+          <span className="text-sm" style={{ color: "var(--success)" }}>
             {summary}
           </span>
         )}
         {error && (
-          <span className="text-sm" style={{ color: "#ff8b8b" }}>
+          <span className="text-sm" style={{ color: "var(--danger)" }}>
             {error}
           </span>
         )}

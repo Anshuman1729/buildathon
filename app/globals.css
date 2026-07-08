@@ -8,6 +8,10 @@
   --text: #e7ebf3;
   --muted: #9aa4b8;
   --accent: #6ea8fe;
+  --accent-contrast: #0b0d12;
+  --success: #7ee2b8;
+  --danger: #ff8b8b;
+  --warning: #f5b971;
 }
 
 html,

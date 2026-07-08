@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
-export function ChatBox() {
+export function ChatBox({ onAdded }: { onAdded?: () => void }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -15,8 +15,12 @@ export function ChatBox() {
     const question = input.trim();
     if (!question || streaming) return;
 
+    // Send the conversation so far (the model needs prior turns to follow up
+    // on a clarifying question it just asked, e.g. for owner/deadline/category).
+    const history = [...turns, { role: "user" as const, content: question }];
+
     setInput("");
-    setTurns((t) => [...t, { role: "user", content: question }]);
+    setTurns(history);
     setStreaming(true);
 
     // Placeholder assistant turn we stream into.
@@ -26,7 +30,7 @@ export function ChatBox() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ messages: history }),
       });
 
       if (!res.ok || !res.body) {
@@ -43,6 +47,9 @@ export function ChatBox() {
         appendToLast(decoder.decode(value, { stream: true }));
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
       }
+      // Cheap no-op refetch if this turn didn't create anything; picks up
+      // new decisions/questions immediately if it did.
+      onAdded?.();
     } catch {
       appendToLast("\n\n[Network error.]");
     } finally {
@@ -63,24 +70,25 @@ export function ChatBox() {
 
   return (
     <div
-      className="flex flex-col rounded-xl border"
+      className="flex h-full flex-col rounded-xl border"
       style={{ background: "var(--surface)" }}
     >
       <h2
         className="border-b px-4 py-3 text-sm font-semibold uppercase tracking-wide"
         style={{ color: "var(--muted)" }}
       >
-        Ask your second brain
+        🧠 Ask your second brain
       </h2>
 
       <div
         ref={scrollRef}
-        className="max-h-72 min-h-[6rem] space-y-3 overflow-y-auto px-4 py-3"
+        className="min-h-[6rem] flex-1 space-y-3 overflow-y-auto px-4 py-3"
       >
         {turns.length === 0 && (
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Ask about decisions, owners, deadlines, or open threads across your
-            meetings.
+            Ask about decisions, owners, deadlines, or open threads — or just
+            tell me about a decision your team made and I&apos;ll ask what I
+            need to save it.
           </p>
         )}
         {turns.map((t, i) => (
@@ -90,7 +98,7 @@ export function ChatBox() {
               style={{
                 background:
                   t.role === "user" ? "var(--accent)" : "var(--surface-2)",
-                color: t.role === "user" ? "#0b0d12" : "var(--text)",
+                color: t.role === "user" ? "var(--accent-contrast)" : "var(--text)",
               }}
             >
               {t.content || (streaming ? "…" : "")}
@@ -110,7 +118,7 @@ export function ChatBox() {
           type="submit"
           disabled={streaming || !input.trim()}
           className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
-          style={{ background: "var(--accent)", color: "#0b0d12" }}
+          style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
         >
           {streaming ? "…" : "Ask"}
         </button>

@@ -28,6 +28,7 @@ const decisionWithSource = {
   sourceMeeting: decisions.sourceMeeting,
   status: decisions.status,
   sourceSnippet: decisions.sourceSnippet,
+  category: decisions.category,
   createdAt: decisions.createdAt,
   sourceType: meetings.sourceType,
   sourceLabel: meetings.title,

@@ -25,6 +25,9 @@ export const decisions = pgTable("decisions", {
   // Verbatim excerpt from the source text supporting this decision, when the
   // model can identify one. Null if not captured.
   sourceSnippet: text("source_snippet"),
+  // One of lib/extract.ts's CATEGORIES, or null for rows created before this
+  // column existed.
+  category: text("category"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .default(sql`now()`),

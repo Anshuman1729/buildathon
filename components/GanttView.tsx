@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { DecisionRow } from "@/lib/types";
 import { statusColor } from "@/lib/ui";
 import { SourceBadge } from "./SourceBadge";
+import { Card } from "./Card";
 
 type GanttItem = {
   decision: DecisionRow;
@@ -83,14 +84,13 @@ export function GanttView({
 
   if (items.length === 0) {
     return (
-      <div
-        className="rounded-xl border p-6 text-sm"
-        style={{ background: "var(--surface)", color: "var(--muted)" }}
-      >
-        No decisions with a usable deadline yet.
-        {excludedCount > 0 &&
-          ` (${excludedCount} decision${excludedCount === 1 ? "" : "s"} excluded — no deadline set.)`}
-      </div>
+      <Card className="text-sm">
+        <span style={{ color: "var(--muted)" }}>
+          No decisions with a usable deadline match.
+          {excludedCount > 0 &&
+            ` (${excludedCount} decision${excludedCount === 1 ? "" : "s"} excluded — no deadline set.)`}
+        </span>
+      </Card>
     );
   }
 
@@ -122,10 +122,7 @@ export function GanttView({
         </p>
       )}
 
-      <div
-        className="rounded-xl border p-4"
-        style={{ background: "var(--surface)" }}
-      >
+      <Card>
         {/* Time axis labels */}
         <div
           className="mb-2 flex justify-between pl-[140px] text-[11px]"
@@ -179,16 +176,21 @@ export function GanttView({
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       {selected && (
-        <div
-          className="rounded-xl border p-4"
-          style={{ background: "var(--surface)" }}
-        >
+        <Card>
           <div className="flex items-start justify-between gap-3">
             <p className="text-sm leading-relaxed">{selected.text}</p>
             <div className="flex shrink-0 items-center gap-2">
+              {selected.category && (
+                <span
+                  className="rounded-full border px-2 py-0.5 text-[11px]"
+                  style={{ color: "var(--muted)" }}
+                >
+                  {selected.category}
+                </span>
+              )}
               <SourceBadge sourceType={selected.sourceType} />
               <span
                 className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
@@ -227,7 +229,7 @@ export function GanttView({
               ? `“${selected.sourceSnippet}”`
               : "No source snippet was captured for this decision."}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

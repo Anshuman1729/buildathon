@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DecisionRow } from "@/lib/types";
 import { SourceBadge } from "./SourceBadge";
+import { Card } from "./Card";
 import { statusColor } from "@/lib/ui";
 
 function fmtDay(ts: string | number): string {
@@ -28,6 +29,7 @@ export function DecisionTimeline({
   onStatusChange?: () => void;
 }) {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   async function markDone(id: number) {
     setUpdatingId(id);
@@ -43,14 +45,28 @@ export function DecisionTimeline({
     }
   }
 
+  async function deleteDecision(id: number) {
+    if (confirmingId !== id) {
+      setConfirmingId(id);
+      return;
+    }
+    setConfirmingId(null);
+    setUpdatingId(id);
+    try {
+      await fetch(`/api/decisions/${id}`, { method: "DELETE" });
+      onStatusChange?.();
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   if (decisions.length === 0) {
     return (
-      <div
-        className="rounded-xl border p-6 text-sm"
-        style={{ background: "var(--surface)", color: "var(--muted)" }}
-      >
-        No decisions yet. Add a source to start building your team&apos;s memory.
-      </div>
+      <Card className="text-sm" >
+        <span style={{ color: "var(--muted)" }}>
+          No decisions match. Add a source or clear filters to see your team&apos;s memory.
+        </span>
+      </Card>
     );
   }
 
@@ -75,14 +91,18 @@ export function DecisionTimeline({
           </div>
           <div className="space-y-2">
             {g.items.map((d) => (
-              <div
-                key={d.id}
-                className="rounded-xl border p-4"
-                style={{ background: "var(--surface)" }}
-              >
+              <Card key={d.id}>
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm leading-relaxed">{d.text}</p>
                   <div className="flex shrink-0 items-center gap-2">
+                    {d.category && (
+                      <span
+                        className="rounded-full border px-2 py-0.5 text-[11px]"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        {d.category}
+                      </span>
+                    )}
                     <SourceBadge sourceType={d.sourceType} />
                     <span
                       className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
@@ -103,18 +123,44 @@ export function DecisionTimeline({
                   <span>📅 {d.deadline ?? "No deadline"}</span>
                   <span>🗂 {d.sourceLabel ?? `Source #${d.sourceMeeting}`}</span>
                   <span>🕑 {fmtTime(d.createdAt)}</span>
-                  {d.status !== "done" && (
+                  <div className="ml-auto flex items-center gap-2">
+                    {d.status !== "done" && (
+                      <button
+                        onClick={() => markDone(d.id)}
+                        disabled={updatingId === d.id}
+                        className="rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        {updatingId === d.id ? "Marking…" : "Mark done"}
+                      </button>
+                    )}
+                    {confirmingId === d.id && (
+                      <button
+                        onClick={() => setConfirmingId(null)}
+                        className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        Cancel
+                      </button>
+                    )}
                     <button
-                      onClick={() => markDone(d.id)}
+                      onClick={() => deleteDecision(d.id)}
                       disabled={updatingId === d.id}
-                      className="ml-auto rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
-                      style={{ color: "var(--accent)" }}
+                      className="rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                      style={{
+                        color: "var(--danger)",
+                        borderColor: confirmingId === d.id ? "var(--danger)" : undefined,
+                      }}
                     >
-                      {updatingId === d.id ? "Marking…" : "Mark done"}
+                      {updatingId === d.id
+                        ? "Deleting…"
+                        : confirmingId === d.id
+                          ? "Confirm delete?"
+                          : "Delete"}
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>

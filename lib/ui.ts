@@ -2,9 +2,9 @@
 // so status/source styling stays consistent across views.
 
 export const statusColor: Record<string, string> = {
-  open: "#6ea8fe",
-  done: "#7ee2b8",
-  stale: "#f5b971",
+  open: "var(--accent)",
+  done: "var(--success)",
+  stale: "var(--warning)",
 };
 
 export const sourceMeta: Record<
@@ -14,6 +14,7 @@ export const sourceMeta: Record<
   meeting: { icon: "🗓️", label: "Meeting" },
   slack: { icon: "💬", label: "Slack" },
   email: { icon: "✉️", label: "Email" },
+  chat: { icon: "🧠", label: "Chat" },
 };
 
 export function getSourceMeta(sourceType: string | null | undefined) {

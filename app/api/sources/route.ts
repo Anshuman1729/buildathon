@@ -70,6 +70,7 @@ export async function POST(req: Request) {
                 owner: d.owner,
                 deadline: d.deadline,
                 sourceSnippet: d.sourceSnippet,
+                category: d.category,
                 sourceMeeting: meeting.id,
               }))
             )

@@ -41,7 +41,7 @@ export async function findContradictions(
 
   const completion = await groq.chat.completions.create({
     model: GROQ_MODEL,
-    temperature: 0.1,
+    temperature: 0,
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
