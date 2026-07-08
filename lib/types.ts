@@ -1,6 +1,6 @@
 // Shared client-facing shapes (dates serialize to numbers/strings over JSON).
 
-export type SourceType = "meeting" | "slack" | "email";
+export type SourceType = "meeting" | "slack" | "email" | "chat";
 
 export type DecisionRow = {
   id: number;

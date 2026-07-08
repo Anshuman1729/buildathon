@@ -14,6 +14,7 @@ export const sourceMeta: Record<
   meeting: { icon: "🗓️", label: "Meeting" },
   slack: { icon: "💬", label: "Slack" },
   email: { icon: "✉️", label: "Email" },
+  chat: { icon: "🧠", label: "Chat" },
 };
 
 export function getSourceMeta(sourceType: string | null | undefined) {

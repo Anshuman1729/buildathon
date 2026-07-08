@@ -155,11 +155,10 @@ function normalizeDecisions(input: unknown): ExtractedDecision[] {
       const text = str(rec?.text);
       if (!text) return null;
       const rawCategory = str(rec?.category);
-      const category = (
-        rawCategory && (CATEGORIES as readonly string[]).includes(rawCategory)
-          ? rawCategory
-          : "Other"
-      ) as Category;
+      const matchedCategory = rawCategory
+        ? CATEGORIES.find((c) => c.toLowerCase() === rawCategory.toLowerCase())
+        : undefined;
+      const category = (matchedCategory ?? "Other") as Category;
       return {
         text,
         owner: str(rec?.owner),

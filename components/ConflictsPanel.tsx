@@ -1,43 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import type { ConflictsResponse } from "@/lib/types";
 import { SourceBadge } from "./SourceBadge";
 import { Card } from "./Card";
 
 export function ConflictsPanel({
-  refreshKey,
+  data,
+  loading,
+  error,
+  onRecheck,
   onStatusChange,
 }: {
-  refreshKey: number;
+  data: ConflictsResponse | null;
+  loading: boolean;
+  error: string | null;
+  onRecheck: () => void;
   onStatusChange?: () => void;
 }) {
-  const [data, setData] = useState<ConflictsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/conflicts");
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? "Failed to run checks.");
-        return;
-      }
-      setData(json);
-    } catch {
-      setError("Network error.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load, refreshKey]);
 
   async function markDone(id: number) {
     setUpdatingId(id);
@@ -48,7 +29,6 @@ export function ConflictsPanel({
         body: JSON.stringify({ status: "done" }),
       });
       onStatusChange?.();
-      await load();
     } finally {
       setUpdatingId(null);
     }
@@ -64,7 +44,7 @@ export function ConflictsPanel({
           Conflicts &amp; stale
         </h2>
         <button
-          onClick={load}
+          onClick={onRecheck}
           className="text-xs underline"
           style={{ color: "var(--muted)" }}
         >

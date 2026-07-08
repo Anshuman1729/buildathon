@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 
 type Turn = { role: "user" | "assistant"; content: string };
 
-export function ChatBox() {
+export function ChatBox({ onAdded }: { onAdded?: () => void }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -15,8 +15,12 @@ export function ChatBox() {
     const question = input.trim();
     if (!question || streaming) return;
 
+    // Send the conversation so far (the model needs prior turns to follow up
+    // on a clarifying question it just asked, e.g. for owner/deadline/category).
+    const history = [...turns, { role: "user" as const, content: question }];
+
     setInput("");
-    setTurns((t) => [...t, { role: "user", content: question }]);
+    setTurns(history);
     setStreaming(true);
 
     // Placeholder assistant turn we stream into.
@@ -26,7 +30,7 @@ export function ChatBox() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ messages: history }),
       });
 
       if (!res.ok || !res.body) {
@@ -43,6 +47,9 @@ export function ChatBox() {
         appendToLast(decoder.decode(value, { stream: true }));
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
       }
+      // Cheap no-op refetch if this turn didn't create anything; picks up
+      // new decisions/questions immediately if it did.
+      onAdded?.();
     } catch {
       appendToLast("\n\n[Network error.]");
     } finally {
@@ -79,8 +86,9 @@ export function ChatBox() {
       >
         {turns.length === 0 && (
           <p className="text-sm" style={{ color: "var(--muted)" }}>
-            Ask about decisions, owners, deadlines, or open threads across your
-            meetings.
+            Ask about decisions, owners, deadlines, or open threads — or just
+            tell me about a decision your team made and I&apos;ll ask what I
+            need to save it.
           </p>
         )}
         {turns.map((t, i) => (
