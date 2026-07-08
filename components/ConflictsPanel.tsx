@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ConflictsResponse } from "@/lib/types";
 import { SourceBadge } from "./SourceBadge";
+import { Card } from "./Card";
 
-export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
+export function ConflictsPanel({
+  refreshKey,
+  onStatusChange,
+}: {
+  refreshKey: number;
+  onStatusChange?: () => void;
+}) {
   const [data, setData] = useState<ConflictsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,11 +39,23 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
     load();
   }, [load, refreshKey]);
 
+  async function markDone(id: number) {
+    setUpdatingId(id);
+    try {
+      await fetch(`/api/decisions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" }),
+      });
+      onStatusChange?.();
+      await load();
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   return (
-    <div
-      className="rounded-xl border p-4"
-      style={{ background: "var(--surface)" }}
-    >
+    <Card>
       <div className="mb-3 flex items-center justify-between">
         <h2
           className="text-sm font-semibold uppercase tracking-wide"
@@ -53,7 +73,7 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
       </div>
 
       {error && (
-        <p className="text-sm" style={{ color: "#ff8b8b" }}>
+        <p className="text-sm" style={{ color: "var(--danger)" }}>
           {error}
         </p>
       )}
@@ -66,7 +86,7 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
             items={data.contradictions.length}
           >
             {data.contradictionError && (
-              <p className="mb-2 text-xs" style={{ color: "#ff8b8b" }}>
+              <p className="mb-2 text-xs" style={{ color: "var(--danger)" }}>
                 {data.contradictionError}
               </p>
             )}
@@ -76,7 +96,7 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
                 className="rounded-lg border p-3"
                 style={{ background: "var(--surface-2)" }}
               >
-                <p className="mb-2 text-xs" style={{ color: "#f5b971" }}>
+                <p className="mb-2 text-xs" style={{ color: "var(--warning)" }}>
                   {c.reason}
                 </p>
                 <p className="flex items-center gap-2 text-xs" style={{ color: "var(--muted)" }}>
@@ -106,15 +126,25 @@ export function ConflictsPanel({ refreshKey }: { refreshKey: number }) {
                   <p>{s.text}</p>
                   <SourceBadge sourceType={s.sourceType} />
                 </div>
-                <p className="mt-1" style={{ color: "var(--muted)" }}>
-                  {s.owner ?? "Unassigned"} · {s.deadline ?? "no deadline"}
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <p style={{ color: "var(--muted)" }}>
+                    {s.owner ?? "Unassigned"} · {s.deadline ?? "no deadline"}
+                  </p>
+                  <button
+                    onClick={() => markDone(s.id)}
+                    disabled={updatingId === s.id}
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                    style={{ color: "var(--accent)" }}
+                  >
+                    {updatingId === s.id ? "Marking…" : "Mark done"}
+                  </button>
+                </div>
               </div>
             ))}
           </Section>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 

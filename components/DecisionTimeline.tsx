@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { DecisionRow } from "@/lib/types";
 import { SourceBadge } from "./SourceBadge";
+import { Card } from "./Card";
 import { statusColor } from "@/lib/ui";
 
 function fmtDay(ts: string | number): string {
@@ -45,12 +46,11 @@ export function DecisionTimeline({
 
   if (decisions.length === 0) {
     return (
-      <div
-        className="rounded-xl border p-6 text-sm"
-        style={{ background: "var(--surface)", color: "var(--muted)" }}
-      >
-        No decisions yet. Add a source to start building your team&apos;s memory.
-      </div>
+      <Card className="text-sm" >
+        <span style={{ color: "var(--muted)" }}>
+          No decisions match. Add a source or clear filters to see your team&apos;s memory.
+        </span>
+      </Card>
     );
   }
 
@@ -75,14 +75,18 @@ export function DecisionTimeline({
           </div>
           <div className="space-y-2">
             {g.items.map((d) => (
-              <div
-                key={d.id}
-                className="rounded-xl border p-4"
-                style={{ background: "var(--surface)" }}
-              >
+              <Card key={d.id}>
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm leading-relaxed">{d.text}</p>
                   <div className="flex shrink-0 items-center gap-2">
+                    {d.category && (
+                      <span
+                        className="rounded-full border px-2 py-0.5 text-[11px]"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        {d.category}
+                      </span>
+                    )}
                     <SourceBadge sourceType={d.sourceType} />
                     <span
                       className="rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
@@ -114,7 +118,7 @@ export function DecisionTimeline({
                     </button>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>

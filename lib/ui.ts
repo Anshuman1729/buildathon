@@ -2,9 +2,9 @@
 // so status/source styling stays consistent across views.
 
 export const statusColor: Record<string, string> = {
-  open: "#6ea8fe",
-  done: "#7ee2b8",
-  stale: "#f5b971",
+  open: "var(--accent)",
+  done: "var(--success)",
+  stale: "var(--warning)",
 };
 
 export const sourceMeta: Record<

@@ -4,11 +4,28 @@ export type SourceType = "meeting" | "slack" | "email";
 
 export const SOURCE_TYPES: SourceType[] = ["meeting", "slack", "email"];
 
+// Fixed set so category is usable as a filter dropdown instead of an
+// unbounded pile of model-invented labels.
+export const CATEGORIES = [
+  "Engineering",
+  "Design",
+  "Product",
+  "Marketing",
+  "Sales",
+  "Support",
+  "Finance",
+  "Ops",
+  "Other",
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
+
 export type ExtractedDecision = {
   text: string;
   owner: string | null;
   deadline: string | null;
   sourceSnippet: string | null;
+  category: Category;
 };
 
 export type ExtractedQuestion = {
@@ -30,7 +47,8 @@ const JSON_SHAPE = `Return ONLY a JSON object with this exact shape:
       "text": "concise statement of the decision that was made",
       "owner": "person responsible or null",
       "deadline": "see deadline rule below",
-      "source_snippet": "a short verbatim quote from the input that supports this decision, or null if none is clearly identifiable"
+      "source_snippet": "a short verbatim quote from the input that supports this decision, or null if none is clearly identifiable",
+      "category": "one of: ${CATEGORIES.join(", ")}"
     }
   ],
   "open_questions": [
@@ -54,6 +72,9 @@ const COMMON_RULES = `Rules:
 - Keep each "text" short and self-contained (readable without the original input).
 - "source_snippet" must be a verbatim substring copied from the input, never paraphrased. Prefer the
   shortest snippet that clearly supports the decision. Use null if you can't point to one.
+- "category" must be exactly one of: ${CATEGORIES.join(", ")} — classify each decision into whichever
+  fits best based on its subject matter. Use "Other" if none clearly fits. Never invent a category
+  outside this list.
 - Respond with JSON only. No prose, no markdown.`;
 
 const SYSTEM_PROMPTS: Record<SourceType, string> = {
@@ -133,11 +154,18 @@ function normalizeDecisions(input: unknown): ExtractedDecision[] {
       const rec = d as Record<string, unknown>;
       const text = str(rec?.text);
       if (!text) return null;
+      const rawCategory = str(rec?.category);
+      const category = (
+        rawCategory && (CATEGORIES as readonly string[]).includes(rawCategory)
+          ? rawCategory
+          : "Other"
+      ) as Category;
       return {
         text,
         owner: str(rec?.owner),
         deadline: str(rec?.deadline),
         sourceSnippet: str(rec?.source_snippet),
+        category,
       } satisfies ExtractedDecision;
     })
     .filter((d): d is ExtractedDecision => d !== null);

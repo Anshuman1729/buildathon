@@ -63,19 +63,19 @@ export function ChatBox() {
 
   return (
     <div
-      className="flex flex-col rounded-xl border"
+      className="flex h-full flex-col rounded-xl border"
       style={{ background: "var(--surface)" }}
     >
       <h2
         className="border-b px-4 py-3 text-sm font-semibold uppercase tracking-wide"
         style={{ color: "var(--muted)" }}
       >
-        Ask your second brain
+        🧠 Ask your second brain
       </h2>
 
       <div
         ref={scrollRef}
-        className="max-h-72 min-h-[6rem] space-y-3 overflow-y-auto px-4 py-3"
+        className="min-h-[6rem] flex-1 space-y-3 overflow-y-auto px-4 py-3"
       >
         {turns.length === 0 && (
           <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -90,7 +90,7 @@ export function ChatBox() {
               style={{
                 background:
                   t.role === "user" ? "var(--accent)" : "var(--surface-2)",
-                color: t.role === "user" ? "#0b0d12" : "var(--text)",
+                color: t.role === "user" ? "var(--accent-contrast)" : "var(--text)",
               }}
             >
               {t.content || (streaming ? "…" : "")}
@@ -110,7 +110,7 @@ export function ChatBox() {
           type="submit"
           disabled={streaming || !input.trim()}
           className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
-          style={{ background: "var(--accent)", color: "#0b0d12" }}
+          style={{ background: "var(--accent)", color: "var(--accent-contrast)" }}
         >
           {streaming ? "…" : "Ask"}
         </button>

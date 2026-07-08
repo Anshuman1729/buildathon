@@ -13,6 +13,7 @@ export type DecisionRow = {
   sourceType: SourceType;
   sourceLabel: string | null;
   sourceSnippet: string | null;
+  category: string | null;
 };
 
 export type QuestionRow = {
@@ -39,6 +40,7 @@ export type ConflictDecisionRow = {
   sourceMeeting: number;
   sourceType: SourceType;
   sourceLabel: string | null;
+  category: string | null;
 };
 
 export type ConflictsResponse = {

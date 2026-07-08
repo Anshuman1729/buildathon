@@ -100,6 +100,7 @@ async function ensureSchema(): Promise<void> {
       -- Additive migrations for databases created before these columns existed.
       ALTER TABLE meetings ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'meeting';
       ALTER TABLE decisions ADD COLUMN IF NOT EXISTS source_snippet TEXT;
+      ALTER TABLE decisions ADD COLUMN IF NOT EXISTS category TEXT;
     `);
     await client.query("COMMIT");
   } catch (err) {
