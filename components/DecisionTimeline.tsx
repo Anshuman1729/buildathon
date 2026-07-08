@@ -1,0 +1,92 @@
+"use client";
+
+import type { DecisionRow } from "@/lib/types";
+
+function fmtDay(ts: string | number): string {
+  const d = new Date(typeof ts === "string" ? Number(ts) || ts : ts);
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function fmtTime(ts: string | number): string {
+  const d = new Date(typeof ts === "string" ? Number(ts) || ts : ts);
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+const statusColor: Record<string, string> = {
+  open: "#6ea8fe",
+  done: "#7ee2b8",
+  stale: "#f5b971",
+};
+
+export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
+  if (decisions.length === 0) {
+    return (
+      <div
+        className="rounded-xl border p-6 text-sm"
+        style={{ background: "var(--surface)", color: "var(--muted)" }}
+      >
+        No decisions yet. Add a meeting to start building your team&apos;s memory.
+      </div>
+    );
+  }
+
+  // Group by day (already sorted newest-first from the API).
+  const groups: { day: string; items: DecisionRow[] }[] = [];
+  for (const d of decisions) {
+    const day = fmtDay(d.createdAt);
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) last.items.push(d);
+    else groups.push({ day, items: [d] });
+  }
+
+  return (
+    <div className="space-y-6">
+      {groups.map((g) => (
+        <div key={g.day}>
+          <div
+            className="mb-2 text-xs font-semibold uppercase tracking-wide"
+            style={{ color: "var(--muted)" }}
+          >
+            {g.day}
+          </div>
+          <div className="space-y-2">
+            {g.items.map((d) => (
+              <div
+                key={d.id}
+                className="rounded-xl border p-4"
+                style={{ background: "var(--surface)" }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm leading-relaxed">{d.text}</p>
+                  <span
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase"
+                    style={{
+                      color: statusColor[d.status] ?? "var(--muted)",
+                      border: `1px solid ${statusColor[d.status] ?? "var(--border)"}`,
+                    }}
+                  >
+                    {d.status}
+                  </span>
+                </div>
+                <div
+                  className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                  style={{ color: "var(--muted)" }}
+                >
+                  <span>👤 {d.owner ?? "Unassigned"}</span>
+                  <span>📅 {d.deadline ?? "No deadline"}</span>
+                  <span>🗂 {d.meetingTitle ?? `Meeting #${d.sourceMeeting}`}</span>
+                  <span>🕑 {fmtTime(d.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
