@@ -46,6 +46,12 @@ for the same decision; that creates an unwanted duplicate.
 For an open/unresolved question the user raises, call create_open_question once you have the question
 text (owner is optional, no need to ask for it).
 
+If the user asks to delete a decision, find it by matching their description against the stored decisions
+above (each is listed as "#<id> ..."). Confirm in plain text which one you mean and that they want it
+permanently deleted (e.g. "Delete #12: 'Scale Meta campaigns' — are you sure?") — do NOT call
+delete_decision until the user explicitly confirms in a following message. If you cannot confidently match
+a single decision, ask which one they mean instead of guessing.
+
 Be concise and direct. Do not narrate that you are "about to call a tool" — just ask the clarifying
 question or make the call.`;
 }
@@ -83,6 +89,21 @@ const TOOLS: ChatCompletionTool[] = [
           owner: { type: "string" },
           deadline: { type: "string" },
           category: { type: "string", enum: [...CATEGORIES] },
+        },
+        required: ["id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_decision",
+      description:
+        "Permanently delete a decision by id, after the user has explicitly confirmed they want it deleted.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "number", description: "The decision's id, from the stored memory list or a prior save/update reply." },
         },
         required: ["id"],
       },
@@ -238,6 +259,16 @@ export async function POST(req: Request) {
                   ? `Updated decision #${row.id}: "${row.text}" (owner: ${row.owner ?? "unassigned"}, deadline: ${row.deadline ?? "none"}, category: ${row.category}).`
                   : `No decision #${id} found — could not update.`;
               }
+            } else if (call.function.name === "delete_decision") {
+              const id = Number(args.id);
+              if (!Number.isInteger(id) || id <= 0) {
+                resultText = "Missing or invalid decision id — could not delete.";
+              } else {
+                const [row] = await getDb().delete(decisions).where(eq(decisions.id, id)).returning();
+                resultText = row
+                  ? `Deleted decision #${row.id}: "${row.text}".`
+                  : `No decision #${id} found — could not delete.`;
+              }
             } else if (call.function.name === "create_open_question") {
               const text = str(args.text);
               if (!text) {
@@ -322,7 +353,7 @@ function buildContext(
       ? ds
           .map(
             (d) =>
-              `- [${d.status}] ${d.text}${d.owner ? ` (owner: ${d.owner})` : ""}${
+              `- #${d.id} [${d.status}] ${d.text}${d.owner ? ` (owner: ${d.owner})` : ""}${
                 d.deadline ? ` (deadline: ${d.deadline})` : ""
               }`
           )

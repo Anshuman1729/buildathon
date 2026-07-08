@@ -29,6 +29,7 @@ export function DecisionTimeline({
   onStatusChange?: () => void;
 }) {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   async function markDone(id: number) {
     setUpdatingId(id);
@@ -38,6 +39,21 @@ export function DecisionTimeline({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "done" }),
       });
+      onStatusChange?.();
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function deleteDecision(id: number) {
+    if (confirmingId !== id) {
+      setConfirmingId(id);
+      return;
+    }
+    setConfirmingId(null);
+    setUpdatingId(id);
+    try {
+      await fetch(`/api/decisions/${id}`, { method: "DELETE" });
       onStatusChange?.();
     } finally {
       setUpdatingId(null);
@@ -107,16 +123,42 @@ export function DecisionTimeline({
                   <span>📅 {d.deadline ?? "No deadline"}</span>
                   <span>🗂 {d.sourceLabel ?? `Source #${d.sourceMeeting}`}</span>
                   <span>🕑 {fmtTime(d.createdAt)}</span>
-                  {d.status !== "done" && (
+                  <div className="ml-auto flex items-center gap-2">
+                    {d.status !== "done" && (
+                      <button
+                        onClick={() => markDone(d.id)}
+                        disabled={updatingId === d.id}
+                        className="rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        {updatingId === d.id ? "Marking…" : "Mark done"}
+                      </button>
+                    )}
+                    {confirmingId === d.id && (
+                      <button
+                        onClick={() => setConfirmingId(null)}
+                        className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                        style={{ color: "var(--muted)" }}
+                      >
+                        Cancel
+                      </button>
+                    )}
                     <button
-                      onClick={() => markDone(d.id)}
+                      onClick={() => deleteDecision(d.id)}
                       disabled={updatingId === d.id}
-                      className="ml-auto rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
-                      style={{ color: "var(--accent)" }}
+                      className="rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                      style={{
+                        color: "var(--danger)",
+                        borderColor: confirmingId === d.id ? "var(--danger)" : undefined,
+                      }}
                     >
-                      {updatingId === d.id ? "Marking…" : "Mark done"}
+                      {updatingId === d.id
+                        ? "Deleting…"
+                        : confirmingId === d.id
+                          ? "Confirm delete?"
+                          : "Delete"}
                     </button>
-                  )}
+                  </div>
                 </div>
               </Card>
             ))}
