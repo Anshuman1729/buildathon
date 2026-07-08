@@ -15,12 +15,17 @@ meetings, and lets you ask questions over the stored memory.
 ## Features
 
 1. **Dashboard / timeline** — all extracted decisions grouped by day, each with text, owner,
-   deadline, source meeting, created-at, and status (`open` / `done` / `stale`).
-2. **Add Meeting** — paste a raw transcript; the model extracts decisions, owners, deadlines, and
-   open questions as structured JSON, saved to the DB.
-3. **Conflicts & Stale panel** — on load, marks any `open` decision with no update in 14+ days as
+   deadline, source badge (🗓️ meeting / 💬 Slack / ✉️ email), created-at, and status
+   (`open` / `done` / `stale`).
+2. **Add Source** — paste a raw meeting transcript, a Slack conversation export, or an email thread
+   (tabbed selector, one tailored extraction prompt per type); the model extracts decisions, owners,
+   deadlines, and open questions as structured JSON, saved to the DB.
+3. **Gantt view** — a second dashboard tab showing decisions-with-deadlines grouped by owner as a
+   timeline, color-coded by status; click a bar for the decision detail + a source snippet linking
+   back to the original text. Decisions without a parseable deadline are excluded with a count note.
+4. **Conflicts & Stale panel** — on load, marks any `open` decision with no update in 14+ days as
    `stale`, and asks the model to flag contradictions between recent decisions.
-4. **Chat** — ask a question; relevant stored decisions + open questions are passed to the model and
+5. **Chat** — ask a question; relevant stored decisions + open questions are passed to the model and
    the answer **streams** back token-by-token.
 
 ## Deploying on Vercel
@@ -62,17 +67,19 @@ prefer explicit Drizzle migrations instead.)
 
 ```
 app/
-  page.tsx                 Dashboard (timeline + conflicts + chat)
-  api/meetings/route.ts    POST: transcript -> extract -> save
+  page.tsx                 Dashboard (Add Source + timeline/Gantt tabs + conflicts + chat)
+  api/sources/route.ts     POST: source text (meeting/Slack/email) -> extract -> save
   api/decisions/route.ts   GET: decisions + open questions for the timeline
   api/conflicts/route.ts   GET: stale check + contradiction detection
   api/chat/route.ts        POST: streamed Q&A over stored memory
 lib/
   db/{schema,index}.ts     Drizzle schema (pg-core) + self-initializing Postgres client
   groq.ts                  Groq client + robust JSON extraction helper
-  extract.ts               Transcript -> structured decisions/questions
+  extract.ts               Source text -> structured decisions/questions (per-source-type prompts)
   conflicts.ts             Contradiction detection
-components/                AddMeetingForm, DecisionTimeline, ConflictsPanel, ChatBox
+  ui.ts                    Shared status color + source badge metadata
+components/                AddSourceForm, DecisionTimeline, GanttView, ConflictsPanel, ChatBox,
+                            SourceBadge
 ```
 
 ## Notes
