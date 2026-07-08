@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb, getSchemaReady } from "@/lib/db";
 import { decisions, meetings, openQuestions } from "@/lib/db/schema";
 import { GROQ_MODEL, getGroq } from "@/lib/groq";
@@ -8,7 +8,10 @@ import type { ChatCompletionMessageParam, ChatCompletionTool } from "groq-sdk/re
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYSTEM_PROMPT = `You are the "Second Brain" for a team's meetings, Slack channels, and email threads.
+function systemPrompt(): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return `You are the "Second Brain" for a team's meetings, Slack channels, and email threads.
+Today's date: ${today}
 
 You have two jobs:
 1. Answer questions using ONLY the stored decisions and open questions provided below as context. Cite
@@ -25,13 +28,27 @@ until you have all of:
 - enough context to pick a category from: ${CATEGORIES.join(", ")}
 
 If any of those is missing or ambiguous, ask ONE short clarifying question for the most important missing
-piece — do not guess, invent, or leave it to a default. Once you have everything, call create_decision.
+piece. NEVER invent, guess, or default a value for owner, deadline, or category that the user did not
+actually state — if you are not certain, ask instead of calling a tool. Getting a field wrong is worse
+than asking one more question. Once — and only once — you have everything, call create_decision.
+
+Deadline resolution: if the user states a due date or timeframe (e.g. "Friday", "the 25th", "10 July",
+"end of month"), resolve it against Today's date above and output an ISO date (YYYY-MM-DD) — e.g. "10
+July" with no year stated means the next occurrence of July 10 on or after today's date, never a past or
+arbitrary year. If you cannot confidently resolve an exact date, pass the phrase exactly as the user said
+it instead of guessing a date.
+
+If the user corrects or adds a detail (owner, deadline, category, text) to a decision you already saved
+earlier in this conversation — visible as "Saved decision #<id>" in your own prior reply — call
+update_decision with that same id and only the field(s) being changed. Do NOT call create_decision again
+for the same decision; that creates an unwanted duplicate.
 
 For an open/unresolved question the user raises, call create_open_question once you have the question
 text (owner is optional, no need to ask for it).
 
 Be concise and direct. Do not narrate that you are "about to call a tool" — just ask the clarifying
 question or make the call.`;
+}
 
 const TOOLS: ChatCompletionTool[] = [
   {
@@ -49,6 +66,25 @@ const TOOLS: ChatCompletionTool[] = [
           category: { type: "string", enum: [...CATEGORIES] },
         },
         required: ["text", "owner", "deadline", "category"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_decision",
+      description:
+        "Correct or fill in a field on a decision you already saved earlier in this conversation (identified by the numeric id from your own 'Saved decision #<id>' reply) — use this instead of create_decision when the user is following up on something already saved, to avoid creating a duplicate.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "number", description: "The id from a prior 'Saved decision #<id>' reply." },
+          text: { type: "string" },
+          owner: { type: "string" },
+          deadline: { type: "string" },
+          category: { type: "string", enum: [...CATEGORIES] },
+        },
+        required: ["id"],
       },
     },
   },
@@ -113,7 +149,7 @@ export async function POST(req: Request) {
   }
 
   const messages: ChatCompletionMessageParam[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\nStored memory:\n${context}` },
+    { role: "system", content: `${systemPrompt()}\n\nStored memory:\n${context}` },
     ...clientMessages,
   ];
 
@@ -128,7 +164,7 @@ export async function POST(req: Request) {
         // inference already is.
         const first = await groq.chat.completions.create({
           model: GROQ_MODEL,
-          temperature: 0.2,
+          temperature: 0,
           tools: TOOLS,
           tool_choice: "auto",
           messages,
@@ -177,6 +213,30 @@ export async function POST(req: Request) {
                   })
                   .returning();
                 resultText = `Saved decision #${row.id}: "${row.text}" (owner: ${row.owner ?? "unassigned"}, deadline: ${row.deadline ?? "none"}, category: ${row.category}).`;
+              }
+            } else if (call.function.name === "update_decision") {
+              const id = Number(args.id);
+              if (!Number.isInteger(id) || id <= 0) {
+                resultText = "Missing or invalid decision id — could not update.";
+              } else {
+                const patch: Partial<typeof decisions.$inferInsert> = {};
+                if (args.text !== undefined) {
+                  const text = str(args.text);
+                  if (text) patch.text = text;
+                }
+                if (args.owner !== undefined) patch.owner = str(args.owner);
+                if (args.deadline !== undefined) patch.deadline = str(args.deadline);
+                if (args.category !== undefined) patch.category = normalizeCategory(args.category);
+
+                const [row] = await getDb()
+                  .update(decisions)
+                  .set(patch)
+                  .where(eq(decisions.id, id))
+                  .returning();
+
+                resultText = row
+                  ? `Updated decision #${row.id}: "${row.text}" (owner: ${row.owner ?? "unassigned"}, deadline: ${row.deadline ?? "none"}, category: ${row.category}).`
+                  : `No decision #${id} found — could not update.`;
               }
             } else if (call.function.name === "create_open_question") {
               const text = str(args.text);
