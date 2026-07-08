@@ -52,12 +52,23 @@ export function getDb(): NodePgDatabase<typeof schema> {
 // concurrent schema-init attempts (e.g. multiple serverless cold starts, or
 // several requests landing before the first init completes) so they don't
 // race on `CREATE TABLE IF NOT EXISTS`.
+//
+// Uses the *transaction-scoped* lock function (pg_advisory_xact_lock), not
+// the session-scoped one (pg_advisory_lock/unlock). Session-level advisory
+// locks are unsafe behind a PgBouncer transaction-pooled connection (e.g.
+// Neon's `-pooler` endpoint) — the pooler can hand the underlying physical
+// connection to a different logical session between statements, so a lock
+// taken in one statement may never be recognized as released, hanging every
+// subsequent request forever. Transaction-scoped locks are released
+// automatically at COMMIT/ROLLBACK, which is exactly the unit transaction
+// pooling supports correctly.
 const SCHEMA_LOCK_KEY = 8_732_991_001;
 
 async function ensureSchema(): Promise<void> {
   const client = await getPool().connect();
   try {
-    await client.query("SELECT pg_advisory_lock($1)", [SCHEMA_LOCK_KEY]);
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock($1)", [SCHEMA_LOCK_KEY]);
     await client.query(`
       CREATE TABLE IF NOT EXISTS meetings (
         id SERIAL PRIMARY KEY,
@@ -90,8 +101,11 @@ async function ensureSchema(): Promise<void> {
       ALTER TABLE meetings ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'meeting';
       ALTER TABLE decisions ADD COLUMN IF NOT EXISTS source_snippet TEXT;
     `);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
   } finally {
-    await client.query("SELECT pg_advisory_unlock($1)", [SCHEMA_LOCK_KEY]);
     client.release();
   }
 }
