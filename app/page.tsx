@@ -86,9 +86,9 @@ export default function Home() {
               </span>
             </div>
             {view === "timeline" ? (
-              <DecisionTimeline decisions={decisions} />
+              <DecisionTimeline decisions={decisions} onStatusChange={handleAdded} />
             ) : (
-              <GanttView decisions={decisions} />
+              <GanttView decisions={decisions} onStatusChange={handleAdded} />
             )}
           </section>
 

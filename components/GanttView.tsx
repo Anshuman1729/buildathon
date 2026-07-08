@@ -30,8 +30,29 @@ function fmtDate(d: Date): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function GanttView({ decisions }: { decisions: DecisionRow[] }) {
+export function GanttView({
+  decisions,
+  onStatusChange,
+}: {
+  decisions: DecisionRow[];
+  onStatusChange?: () => void;
+}) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [updating, setUpdating] = useState(false);
+
+  async function markDone(id: number) {
+    setUpdating(true);
+    try {
+      await fetch(`/api/decisions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" }),
+      });
+      onStatusChange?.();
+    } finally {
+      setUpdating(false);
+    }
+  }
 
   const { items, excludedCount } = useMemo(() => {
     const parsed: GanttItem[] = [];
@@ -181,12 +202,22 @@ export function GanttView({ decisions }: { decisions: DecisionRow[] }) {
             </div>
           </div>
           <div
-            className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"
+            className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
             style={{ color: "var(--muted)" }}
           >
             <span>👤 {selected.owner ?? "Unassigned"}</span>
             <span>📅 {selected.deadline}</span>
             <span>🗂 {selected.sourceLabel ?? `Source #${selected.sourceMeeting}`}</span>
+            {selected.status !== "done" && (
+              <button
+                onClick={() => markDone(selected.id)}
+                disabled={updating}
+                className="ml-auto rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                style={{ color: "var(--accent)" }}
+              >
+                {updating ? "Marking…" : "Mark done"}
+              </button>
+            )}
           </div>
           <div
             className="mt-3 rounded-lg border p-3 text-xs italic"

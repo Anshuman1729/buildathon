@@ -29,7 +29,7 @@ const JSON_SHAPE = `Return ONLY a JSON object with this exact shape:
     {
       "text": "concise statement of the decision that was made",
       "owner": "person responsible or null",
-      "deadline": "due date/timeframe as written, ISO date if possible, or null",
+      "deadline": "see deadline rule below",
       "source_snippet": "a short verbatim quote from the input that supports this decision, or null if none is clearly identifiable"
     }
   ],
@@ -41,7 +41,16 @@ const JSON_SHAPE = `Return ONLY a JSON object with this exact shape:
 const COMMON_RULES = `Rules:
 - A "decision" is a concrete choice the group committed to (not a suggestion or discussion point).
 - Only include decisions and questions actually present in the input. Do not invent any.
-- Use null (not empty string) when a field is not stated or not identifiable.
+- Use null (not empty string) for "owner" when it is not stated or not identifiable.
+- Deadline rule (applies only to the "deadline" field, do not use the general owner/null rule for
+  it): if the input states ANY due date or timeframe for a decision (e.g. "Friday", "the 25th", "end
+  of month", "next sprint", "Monday"), you MUST resolve it using the "Today's date" given in the
+  input — output an ISO date (YYYY-MM-DD) when you can confidently resolve one (e.g. "Friday" -> the
+  date of the next occurring Friday on/after today's date; "end of month" -> the last day of today's
+  month). If you genuinely cannot resolve a specific date, output the phrase exactly as written (e.g.
+  "end of month") instead of guessing — never output null just because you can't produce a clean ISO
+  date. Use null for "deadline" ONLY when the input states no due date or timeframe at all for that
+  decision.
 - Keep each "text" short and self-contained (readable without the original input).
 - "source_snippet" must be a verbatim substring copied from the input, never paraphrased. Prefer the
   shortest snippet that clearly supports the decision. Use null if you can't point to one.
@@ -96,7 +105,7 @@ export async function extractFromSource(
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `Input:\n\n${rawText}`,
+        content: `Today's date: ${new Date().toISOString().slice(0, 10)}\n\nInput:\n\n${rawText}`,
       },
     ],
   });

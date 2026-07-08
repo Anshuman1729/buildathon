@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { DecisionRow } from "@/lib/types";
 import { SourceBadge } from "./SourceBadge";
 import { statusColor } from "@/lib/ui";
@@ -19,7 +20,29 @@ function fmtTime(ts: string | number): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
+export function DecisionTimeline({
+  decisions,
+  onStatusChange,
+}: {
+  decisions: DecisionRow[];
+  onStatusChange?: () => void;
+}) {
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+
+  async function markDone(id: number) {
+    setUpdatingId(id);
+    try {
+      await fetch(`/api/decisions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "done" }),
+      });
+      onStatusChange?.();
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   if (decisions.length === 0) {
     return (
       <div
@@ -73,13 +96,23 @@ export function DecisionTimeline({ decisions }: { decisions: DecisionRow[] }) {
                   </div>
                 </div>
                 <div
-                  className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                  className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
                   style={{ color: "var(--muted)" }}
                 >
                   <span>👤 {d.owner ?? "Unassigned"}</span>
                   <span>📅 {d.deadline ?? "No deadline"}</span>
                   <span>🗂 {d.sourceLabel ?? `Source #${d.sourceMeeting}`}</span>
                   <span>🕑 {fmtTime(d.createdAt)}</span>
+                  {d.status !== "done" && (
+                    <button
+                      onClick={() => markDone(d.id)}
+                      disabled={updatingId === d.id}
+                      className="ml-auto rounded-full border px-2 py-0.5 text-[11px] font-medium disabled:opacity-50"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      {updatingId === d.id ? "Marking…" : "Mark done"}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
