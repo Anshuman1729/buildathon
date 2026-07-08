@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { and, desc, eq, lt } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb, getSchemaReady } from "@/lib/db";
 import { decisions } from "@/lib/db/schema";
 import { findContradictions } from "@/lib/conflicts";
 
@@ -11,28 +11,36 @@ const STALE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 const MAX_FOR_CONTRADICTIONS = 40; // bound the LLM input
 
 export async function GET() {
+  let db;
+  try {
+    await getSchemaReady();
+    db = getDb();
+  } catch (err) {
+    console.error("db unavailable", err);
+    const message = err instanceof Error ? err.message : "Database unavailable.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
   const cutoff = new Date(Date.now() - STALE_MS);
 
   // 1. Stale: 'open' decisions with no update in 14+ days -> mark + collect.
-  db.update(decisions)
+  await db
+    .update(decisions)
     .set({ status: "stale" })
-    .where(and(eq(decisions.status, "open"), lt(decisions.createdAt, cutoff)))
-    .run();
+    .where(and(eq(decisions.status, "open"), lt(decisions.createdAt, cutoff)));
 
-  const stale = db
+  const stale = await db
     .select()
     .from(decisions)
     .where(eq(decisions.status, "stale"))
-    .orderBy(desc(decisions.createdAt))
-    .all();
+    .orderBy(desc(decisions.createdAt));
 
   // 2. Contradictions: ask the model over a bounded set of recent decisions.
-  const recent = db
+  const recent = await db
     .select()
     .from(decisions)
     .orderBy(desc(decisions.createdAt))
-    .limit(MAX_FOR_CONTRADICTIONS)
-    .all();
+    .limit(MAX_FOR_CONTRADICTIONS);
 
   type ContradictionOut = {
     reason: string;

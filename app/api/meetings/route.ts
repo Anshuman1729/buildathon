@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb, getSchemaReady } from "@/lib/db";
 import { decisions, meetings, openQuestions } from "@/lib/db/schema";
 import { extractFromTranscript } from "@/lib/extract";
 
@@ -41,15 +41,17 @@ export async function POST(req: Request) {
 
   // 2. Persist the meeting + extracted rows.
   try {
-    const [meeting] = db
+    await getSchemaReady();
+    const db = getDb();
+
+    const [meeting] = await db
       .insert(meetings)
       .values({ title, transcript })
-      .returning()
-      .all();
+      .returning();
 
     const insertedDecisions =
       extraction.decisions.length > 0
-        ? db
+        ? await db
             .insert(decisions)
             .values(
               extraction.decisions.map((d) => ({
@@ -60,12 +62,11 @@ export async function POST(req: Request) {
               }))
             )
             .returning()
-            .all()
         : [];
 
     const insertedQuestions =
       extraction.open_questions.length > 0
-        ? db
+        ? await db
             .insert(openQuestions)
             .values(
               extraction.open_questions.map((q) => ({
@@ -75,7 +76,6 @@ export async function POST(req: Request) {
               }))
             )
             .returning()
-            .all()
         : [];
 
     return NextResponse.json({

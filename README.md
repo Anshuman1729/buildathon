@@ -7,8 +7,8 @@ meetings, and lets you ask questions over the stored memory.
 ## Stack
 
 - **Next.js (App Router) + TypeScript + Tailwind CSS v4** — deploys to Vercel.
-- **SQLite via Drizzle ORM** (`better-sqlite3`) for local dev. Schema is kept portable so it can be
-  swapped to Postgres/Vercel Postgres later (driver + column-type change).
+- **Postgres via Drizzle ORM** (`pg` driver). Works with Vercel Postgres, Neon, Supabase, or a local
+  Postgres instance — same connection-string interface everywhere.
 - **Groq** (free tier) running an open-source model — default `llama-3.3-70b-versatile` — for
   extraction, contradiction detection, and Q&A. OpenAI-compatible API; no Anthropic key needed.
 
@@ -23,29 +23,40 @@ meetings, and lets you ask questions over the stored memory.
 4. **Chat** — ask a question; relevant stored decisions + open questions are passed to the model and
    the answer **streams** back token-by-token.
 
-## Getting started
+## Deploying on Vercel
+
+1. Import this repo into Vercel (Next.js is auto-detected).
+2. In your Vercel project, go to **Storage → Create Database → Postgres** and attach it. Vercel
+   injects `POSTGRES_URL` automatically — no manual config needed.
+3. Add the `GROQ_API_KEY` environment variable (free key at https://console.groq.com/keys).
+4. Deploy. The schema self-initializes on first request — no separate migration step.
+
+## Local development
 
 ```bash
 npm install
 
-# add your free Groq key (https://console.groq.com/keys)
 cp .env.example .env.local
-# then edit .env.local and set GROQ_API_KEY=...
+# edit .env.local:
+#   GROQ_API_KEY=...            (https://console.groq.com/keys)
+#   DATABASE_URL=postgres://user:password@localhost:5432/second_brain
 
 npm run dev
 # open http://localhost:3000
 ```
 
-The SQLite database self-initializes on first run at `./data/second-brain.db` — no migration step
-needed. (`npm run db:generate` / `db:push` are available if you prefer explicit Drizzle migrations.)
+Any reachable Postgres works for `DATABASE_URL` (local install, Docker, Neon, Supabase, etc.). The
+schema self-initializes on first request. (`npm run db:generate` / `db:push` are available if you
+prefer explicit Drizzle migrations instead.)
 
 ## Environment variables
 
-| Variable         | Required | Default                     | Notes                                   |
-| ---------------- | -------- | --------------------------- | --------------------------------------- |
-| `GROQ_API_KEY`   | yes      | —                           | Free key from console.groq.com          |
-| `GROQ_MODEL`     | no       | `llama-3.3-70b-versatile`   | Swap the open-source model              |
-| `DATABASE_PATH`  | no       | `./data/second-brain.db`    | SQLite file location                    |
+| Variable       | Required                              | Default                   | Notes                                                                 |
+| -------------- | -------------------------------------- | -------------------------- | ---------------------------------------------------------------------- |
+| `GROQ_API_KEY` | yes                                     | —                           | Free key from console.groq.com                                        |
+| `GROQ_MODEL`   | no                                      | `llama-3.3-70b-versatile`  | Swap the open-source model                                             |
+| `POSTGRES_URL` | one of `POSTGRES_URL` / `DATABASE_URL` | —                           | Auto-set by Vercel when Postgres storage is attached                  |
+| `DATABASE_URL` | one of `POSTGRES_URL` / `DATABASE_URL` | —                           | Standard `postgres://` connection string for local dev / other hosts  |
 
 ## Project layout
 
@@ -57,7 +68,7 @@ app/
   api/conflicts/route.ts   GET: stale check + contradiction detection
   api/chat/route.ts        POST: streamed Q&A over stored memory
 lib/
-  db/{schema,index}.ts     Drizzle schema + self-initializing SQLite client
+  db/{schema,index}.ts     Drizzle schema (pg-core) + self-initializing Postgres client
   groq.ts                  Groq client + robust JSON extraction helper
   extract.ts               Transcript -> structured decisions/questions
   conflicts.ts             Contradiction detection

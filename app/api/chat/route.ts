@@ -1,5 +1,5 @@
 import { desc } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { getDb, getSchemaReady } from "@/lib/db";
 import { decisions, openQuestions } from "@/lib/db/schema";
 import { GROQ_MODEL, getGroq } from "@/lib/groq";
 
@@ -25,23 +25,23 @@ export async function POST(req: Request) {
   }
 
   // Pull stored memory as context (small demo dataset — send it all).
-  const allDecisions = db
-    .select()
-    .from(decisions)
-    .orderBy(desc(decisions.createdAt))
-    .all();
-  const allQuestions = db
-    .select()
-    .from(openQuestions)
-    .orderBy(desc(openQuestions.createdAt))
-    .all();
-
-  const context = buildContext(allDecisions, allQuestions);
-
+  let context: string;
   let groq;
   try {
+    await getSchemaReady();
+    const db = getDb();
+    const allDecisions = await db
+      .select()
+      .from(decisions)
+      .orderBy(desc(decisions.createdAt));
+    const allQuestions = await db
+      .select()
+      .from(openQuestions)
+      .orderBy(desc(openQuestions.createdAt));
+    context = buildContext(allDecisions, allQuestions);
     groq = getGroq();
   } catch (err) {
+    console.error("chat setup failed", err);
     const message = err instanceof Error ? err.message : "Chat unavailable.";
     return new Response(message, { status: 500 });
   }
