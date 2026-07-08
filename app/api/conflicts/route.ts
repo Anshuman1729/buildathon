@@ -7,7 +7,13 @@ import { findContradictions } from "@/lib/conflicts";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STALE_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+// Configurable so staleness can be demoed/tested without waiting 14 real
+// days (e.g. STALE_DAYS=0.001 on Vercel for a quick demo pass). Falls back
+// to the 14-day default on anything not a positive number.
+const parsedStaleDays = Number(process.env.STALE_DAYS);
+const STALE_DAYS =
+  Number.isFinite(parsedStaleDays) && parsedStaleDays > 0 ? parsedStaleDays : 14;
+const STALE_MS = STALE_DAYS * 24 * 60 * 60 * 1000;
 const MAX_FOR_CONTRADICTIONS = 40; // bound the LLM input
 
 // Selected columns for decisions joined with their source's label/type,

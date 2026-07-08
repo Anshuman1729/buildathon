@@ -62,6 +62,7 @@ prefer explicit Drizzle migrations instead.)
 | `GROQ_MODEL`   | no                                      | `llama-3.3-70b-versatile`  | Swap the open-source model                                             |
 | `POSTGRES_URL` | one of `POSTGRES_URL` / `DATABASE_URL` | —                           | Auto-set by Vercel when Postgres storage is attached                  |
 | `DATABASE_URL` | one of `POSTGRES_URL` / `DATABASE_URL` | —                           | Standard `postgres://` connection string for local dev / other hosts  |
+| `STALE_DAYS`   | no                                      | `14`                        | Days before an open decision is marked stale. Lower for testing/demos (e.g. `0.001`), don't leave lowered in production. |
 
 ## Project layout
 
